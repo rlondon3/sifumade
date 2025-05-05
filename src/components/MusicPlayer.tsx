@@ -6,7 +6,7 @@ import {
 	SkipBack,
 	SkipForward,
 	Volume2,
-	ShoppingCart,
+	// ShoppingCart,
 	ChevronLeft,
 	ChevronRight,
 	Calendar,
@@ -652,14 +652,14 @@ const MusicPlayer = () => {
 		<motion.div
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
-			className='w-full max-w-6xl mx-auto flex gap-6'
+			className='w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-6'
 		>
-			{/* Latest Release Box - Left Side */}
+			{/* Latest Release Box - Left Side on desktop, stacked on mobile */}
 			<motion.div
 				initial={{ opacity: 0, x: -20 }}
 				animate={{ opacity: 1, x: 0 }}
 				transition={{ delay: 0.2 }}
-				className='w-1/4 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
+				className='w-full md:w-1/4 order-2 md:order-1 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col mb-6 md:mb-0'
 			>
 				<h3 className='text-[#00f3ff] text-lg font-bold mb-3'>
 					Latest Release
@@ -670,7 +670,7 @@ const MusicPlayer = () => {
 						<div className='aspect-square rounded-lg neon-border overflow-hidden mb-3'>
 							{latestCoverUrl ? (
 								<img
-									src={latestCoverUrl} // Make sure we're using the state variable here
+									src={latestCoverUrl}
 									alt='Latest Release'
 									className='w-full h-full object-cover'
 								/>
@@ -724,8 +724,8 @@ const MusicPlayer = () => {
 				)}
 			</motion.div>
 
-			{/* Main Player - Center */}
-			<motion.div className='w-1/2 bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-6'>
+			{/* Main Player - Center for desktop, Top for mobile */}
+			<motion.div className='w-full md:w-1/2 order-1 md:order-2 bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 md:p-6 mb-6 md:mb-0'>
 				{/* Hidden audio element */}
 				<audio
 					ref={audioRef}
@@ -737,9 +737,9 @@ const MusicPlayer = () => {
 				/>
 
 				<div className='flex flex-col items-center'>
-					{/* Album Art */}
+					{/* Album Art - smaller on mobile */}
 					<motion.div
-						className='w-64 h-64 rounded-lg neon-border overflow-hidden mb-8'
+						className='w-48 h-48 md:w-64 md:h-64 rounded-lg neon-border overflow-hidden mb-4 md:mb-8'
 						whileHover={{ scale: 1.02 }}
 					>
 						{coverUrl ? (
@@ -756,8 +756,8 @@ const MusicPlayer = () => {
 					</motion.div>
 
 					{/* Track Info */}
-					<div className='text-center mb-8'>
-						<h2 className='text-2xl font-bold neon-text mb-2'>
+					<div className='text-center mb-4 md:mb-8'>
+						<h2 className='text-xl md:text-2xl font-bold neon-text mb-2'>
 							{currentSong?.title || 'No track selected'}
 						</h2>
 						<p className='text-[#00f3ff] opacity-80'>
@@ -766,7 +766,7 @@ const MusicPlayer = () => {
 					</div>
 
 					{/* Controls */}
-					<div className='flex items-center justify-center space-x-6 mb-8'>
+					<div className='flex items-center justify-center space-x-6 mb-4 md:mb-8'>
 						<motion.button
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.95 }}
@@ -803,7 +803,7 @@ const MusicPlayer = () => {
 							<span>{formatTime(duration)}</span>
 						</div>
 						<div
-							className='w-full h-1 bg-[#00f3ff33] rounded-full mb-8 cursor-pointer'
+							className='w-full h-1 bg-[#00f3ff33] rounded-full mb-4 md:mb-8 cursor-pointer'
 							onClick={handleSeek}
 						>
 							<motion.div
@@ -814,8 +814,8 @@ const MusicPlayer = () => {
 						</div>
 					</div>
 
-					{/* Volume and Purchase */}
-					<div className='flex items-center justify-between w-full mb-8'>
+					{/* Volume control only - Purchase button commented out */}
+					<div className='flex items-center justify-between w-full mb-4 md:mb-8'>
 						<div className='flex items-center'>
 							<Volume2 className='text-[#00f3ff] mr-2' />
 							<input
@@ -829,17 +829,19 @@ const MusicPlayer = () => {
 							/>
 						</div>
 
-						<motion.button
-							whileHover={{ scale: 1.05, color: '#ff9000' }}
-							whileTap={{ scale: 0.95 }}
-							className='flex items-center bg-[#00f3ff33] text-[#00f3ff] px-4 py-2 rounded-full hover-glow'
-						>
-							<ShoppingCart className='mr-2' />
-							Purchase Track
-						</motion.button>
+						{/* Purchase button commented out
+				<motion.button
+				  whileHover={{ scale: 1.05, color: '#ff9000' }}
+				  whileTap={{ scale: 0.95 }}
+				  className='flex items-center bg-[#00f3ff33] text-[#00f3ff] px-4 py-2 rounded-full hover-glow'
+				>
+				  <ShoppingCart className='mr-2' />
+				  Purchase Track
+				</motion.button>
+				*/}
 					</div>
 
-					{/* Album Carousel */}
+					{/* Album Carousel - Row on desktop, stack on mobile */}
 					{albums.length > 0 && (
 						<div className='w-full'>
 							<div className='flex items-center justify-between mb-4'>
@@ -864,11 +866,11 @@ const MusicPlayer = () => {
 								</div>
 							</div>
 
-							<div className='flex justify-between gap-4'>
+							<div className='flex flex-col sm:flex-row justify-between gap-4'>
 								{visibleAlbums.map((album) => (
 									<motion.div
 										key={album.id}
-										className='relative w-1/3 aspect-square rounded-lg overflow-hidden neon-border cursor-pointer'
+										className='relative w-full sm:w-1/3 aspect-square rounded-lg overflow-hidden neon-border cursor-pointer mb-4 sm:mb-0'
 										whileHover={{ scale: 1.05 }}
 										transition={{ type: 'spring', stiffness: 300 }}
 										onClick={() => selectAlbum(album)}
@@ -900,12 +902,12 @@ const MusicPlayer = () => {
 				</div>
 			</motion.div>
 
-			{/* Upcoming Release Box - Right Side */}
+			{/* Upcoming Release Box - Right Side on desktop, stacked on mobile */}
 			<motion.div
 				initial={{ opacity: 0, x: 20 }}
 				animate={{ opacity: 1, x: 0 }}
 				transition={{ delay: 0.4 }}
-				className='w-1/4 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
+				className='w-full md:w-1/4 order-3 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
 			>
 				<h3 className='text-[#00f3ff] text-lg font-bold mb-3'>Coming Soon</h3>
 
@@ -914,7 +916,7 @@ const MusicPlayer = () => {
 						<div className='aspect-square rounded-lg neon-border overflow-hidden mb-3'>
 							{upcomingCoverUrl ? (
 								<img
-									src={upcomingCoverUrl} // Use the state variable here
+									src={upcomingCoverUrl}
 									alt='Upcoming Release'
 									className='w-full h-full object-cover'
 								/>
