@@ -45,7 +45,7 @@ export class AudioCache {
 		try {
 			await caches.open(this.AUDIO_CACHE);
 			await caches.open(this.METADATA_CACHE);
-			console.log('Album cache initialized successfully');
+			// console.log('Album cache initialized successfully');
 		} catch (error) {
 			console.error('Failed to initialize album cache:', error);
 		}
@@ -59,7 +59,7 @@ export class AudioCache {
 		if (!this.isSupported()) return;
 
 		try {
-			console.log(`Caching release: ${release.title}`);
+			// console.log(`Caching release: ${release.title}`);
 
 			// Cache the cover image
 			const cache = await caches.open(this.AUDIO_CACHE);
@@ -72,7 +72,7 @@ export class AudioCache {
 
 				if (coverResponse.ok) {
 					await cache.put(coverUrl, coverResponse.clone());
-					console.log(`Cached cover for release: ${release.title}`);
+					// console.log(`Cached cover for release: ${release.title}`);
 				} else {
 					console.warn(
 						`Failed to cache release cover image: ${coverResponse.status}`
@@ -92,7 +92,7 @@ export class AudioCache {
 
 					if (audioResponse.ok) {
 						await cache.put(audioUrl, audioResponse.clone());
-						console.log(`Cached audio for release: ${release.title}`);
+						// console.log(`Cached audio for release: ${release.title}`);
 					} else {
 						console.warn(
 							`Failed to cache release audio: ${audioResponse.status}`
@@ -120,7 +120,7 @@ export class AudioCache {
 				new Response(JSON.stringify(cachedRelease))
 			);
 
-			console.log(`Release ${release.title} cached successfully`);
+			// console.log(`Release ${release.title} cached successfully`);
 		} catch (error) {
 			console.error(`Failed to cache release ${release.title}:`, error);
 		}
@@ -261,7 +261,7 @@ export class AudioCache {
 				// Delete metadata
 				await metaCache.delete(releaseId);
 
-				console.log(`Cleared release ${releaseId} from cache`);
+				// console.log(`Cleared release ${releaseId} from cache`);
 			}
 		} catch (error) {
 			console.error(`Failed to clear release ${releaseId} from cache:`, error);
@@ -278,7 +278,7 @@ export class AudioCache {
 
 		// Check if we're already caching this album
 		if (this.cachingInProgress[album.id]) {
-			console.log(`Caching already in progress for album: ${album.title}`);
+			// console.log(`Caching already in progress for album: ${album.title}`);
 			return;
 		}
 
@@ -289,11 +289,11 @@ export class AudioCache {
 			// Double-check if already cached
 			const isAlreadyCached = await this.isAlbumCached(album.id);
 			if (isAlreadyCached) {
-				console.log(`Album ${album.title} is already cached (confirmed)`);
+				// console.log(`Album ${album.title} is already cached (confirmed)`);
 				return;
 			}
 
-			console.log(`Caching entire album: ${album.title}`);
+			// console.log(`Caching entire album: ${album.title}`);
 
 			// Cache the cover image
 			const cache = await caches.open(this.AUDIO_CACHE);
@@ -306,7 +306,7 @@ export class AudioCache {
 
 				if (coverResponse.ok) {
 					await cache.put(coverUrl, coverResponse.clone());
-					console.log(`Cached cover for ${album.title}`);
+					// console.log(`Cached cover for ${album.title}`);
 				} else {
 					console.warn(`Failed to cache cover image: ${coverResponse.status}`);
 				}
@@ -330,7 +330,7 @@ export class AudioCache {
 					if (response.ok) {
 						await cache.put(url, response.clone());
 						audioUrls[song.key] = url;
-						console.log(`Cached song: ${song.title}`);
+						// console.log(`Cached song: ${song.title}`);
 					} else {
 						console.warn(
 							`Failed to cache song ${song.title}: ${response.status}`
@@ -357,11 +357,11 @@ export class AudioCache {
 			const metaCache = await caches.open(this.METADATA_CACHE);
 			await metaCache.put(album.id, new Response(JSON.stringify(cachedAlbum)));
 
-			console.log(
-				`Album ${album.title} cached with ${Object.keys(audioUrls).length}/${
-					album.songs.length
-				} songs`
-			);
+			// console.log(
+			// 	`Album ${album.title} cached with ${Object.keys(audioUrls).length}/${
+			// 		album.songs.length
+			// 	} songs`
+			// );
 		} catch (error) {
 			console.error(`Failed to cache album ${album.title}:`, error);
 		} finally {
@@ -379,7 +379,7 @@ export class AudioCache {
 			const metaResponse = await metaCache.match(albumId);
 
 			if (!metaResponse) {
-				console.log(`Album ${albumId} not found in metadata cache`);
+				// console.log(`Album ${albumId} not found in metadata cache`);
 				return false;
 			}
 
@@ -387,18 +387,18 @@ export class AudioCache {
 
 			// Check if cache has expired
 			if (Date.now() > cachedAlbum.expiresAt) {
-				console.log(`Album ${albumId} cache has expired`);
+				// console.log(`Album ${albumId} cache has expired`);
 				await this.clearAlbum(albumId);
 				return false;
 			}
 
 			// Verify that at least some songs are actually cached
 			if (Object.keys(cachedAlbum.audioUrls).length === 0) {
-				console.log(`Album ${albumId} has no songs cached`);
+				// console.log(`Album ${albumId} has no songs cached`);
 				return false;
 			}
 
-			console.log(`Album ${albumId} is already properly cached`);
+			// console.log(`Album ${albumId} is already properly cached`);
 			return true;
 		} catch (error) {
 			console.error(`Error checking if album ${albumId} is cached:`, error);
@@ -548,7 +548,7 @@ export class AudioCache {
 				// Delete metadata
 				await metaCache.delete(albumId);
 
-				console.log(`Cleared album ${albumId} from cache`);
+				// console.log(`Cleared album ${albumId} from cache`);
 			}
 		} catch (error) {
 			console.error(`Failed to clear album ${albumId} from cache:`, error);
@@ -587,7 +587,7 @@ export class AudioCache {
 			await caches.delete(this.AUDIO_CACHE);
 			await caches.delete(this.METADATA_CACHE);
 			await this.init();
-			console.log('Cleared all cached albums and releases');
+			// console.log('Cleared all cached albums and releases');
 		} catch (error) {
 			console.error('Failed to clear audio cache:', error);
 		}

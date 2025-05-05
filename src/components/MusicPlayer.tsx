@@ -57,7 +57,6 @@ const MusicPlayer = () => {
 	const [upcomingCoverUrl, setUpcomingCoverUrl] = useState<string | null>(null);
 
 	const audioRef = useRef<HTMLAudioElement>(null);
-	console.log(latestCoverUrl, '??');
 	// Calculate visible albums here, before any useEffect that depends on it
 	const getVisibleAlbums = () => {
 		return albums.slice(currentAlbumIndex, currentAlbumIndex + 3);
@@ -342,10 +341,14 @@ const MusicPlayer = () => {
 	useEffect(() => {
 		// Load latest and upcoming releases
 		const loadReleases = async () => {
+			console.log('Attempting to load latest release');
+			// const latest = await getLatestRelease();
+			// console.log('Latest release result:', latest);
 			try {
 				// Get latest release
 				const latest = await getLatestRelease();
 				if (latest) {
+					// console.log('Cover key:', latest.coverKey);
 					setLatestRelease(latest);
 
 					// Try to get cover URL from cache first
@@ -693,7 +696,7 @@ const MusicPlayer = () => {
 							</span>
 						</div>
 
-						{latestRelease.key && (
+						{latestRelease.key && latestRelease.key !== '' ? (
 							<motion.button
 								whileHover={{ scale: 1.05 }}
 								whileTap={{ scale: 0.95 }}
@@ -702,6 +705,13 @@ const MusicPlayer = () => {
 							>
 								<Play size={12} className='inline mr-1' />
 								Listen Now
+							</motion.button>
+						) : (
+							<motion.button
+								className='mt-auto bg-[#00f3ff19] text-[#00f3ff88] px-2 py-1 rounded-full text-xs cursor-not-allowed'
+								disabled
+							>
+								See Albums
 							</motion.button>
 						)}
 					</>

@@ -48,12 +48,12 @@ export async function getPresignedCoverUrl(album: Album): Promise<string> {
 		// Try to get from cache first
 		const cachedUrl = await audioCache.getCoverUrl(album.id);
 		if (cachedUrl) {
-			console.log(`Using cached cover for album ${album.title}`);
+			// console.log(`Using cached cover for album ${album.title}`);
 			return cachedUrl;
 		}
 
 		// If not in cache, get from S3
-		console.log(`Fetching cover from S3: ${album.coverKey}`);
+		// console.log(`Fetching cover from S3: ${album.coverKey}`);
 		const command = new GetObjectCommand({
 			Bucket: import.meta.env.VITE_S3_BUCKET_NAME,
 			Key: album.coverKey,
@@ -99,7 +99,7 @@ export async function getPresignedCoverUrl(album: Album): Promise<string> {
 					);
 				}
 
-				console.log(`Cover for ${album.title} cached successfully`);
+				// console.log(`Cover for ${album.title} cached successfully`);
 			}
 		} catch (err) {
 			console.error(`Failed to cache cover image: ${err}`);
@@ -122,12 +122,12 @@ export async function getPresignedUrl(
 		// Try to get from cache first
 		const cachedUrl = await audioCache.getSongUrl(albumId, key);
 		if (cachedUrl) {
-			console.log(`Using cached audio for ${key}`);
+			// console.log(`Using cached audio for ${key}`);
 			return cachedUrl;
 		}
 
 		// If not in cache, get from S3
-		console.log(`Fetching from S3: ${key}`);
+		// console.log(`Fetching from S3: ${key}`);
 		const command = new GetObjectCommand({
 			Bucket: import.meta.env.VITE_S3_BUCKET_NAME,
 			Key: key,
@@ -146,11 +146,11 @@ export async function cacheEntireAlbum(album: Album): Promise<void> {
 		// Check if already cached
 		const isAlreadyCached = await audioCache.isAlbumCached(album.id);
 		if (isAlreadyCached) {
-			console.log(`Album ${album.title} is already cached`);
+			// console.log(`Album ${album.title} is already cached`);
 			return;
 		}
 
-		console.log(`Starting to cache entire album: ${album.title}`);
+		// console.log(`Starting to cache entire album: ${album.title}`);
 
 		// Get cover URL
 		const coverCommand = new GetObjectCommand({
@@ -176,7 +176,7 @@ export async function cacheEntireAlbum(album: Album): Promise<void> {
 		// Cache the entire album at once
 		await audioCache.cacheAlbum(album, coverUrl, songUrls);
 
-		console.log(`Successfully initiated caching for album ${album.title}`);
+		// console.log(`Successfully initiated caching for album ${album.title}`);
 	} catch (error) {
 		console.error(`Error caching album ${album.title}:`, error);
 	}
@@ -196,7 +196,7 @@ export async function scanMusicLibrary(): Promise<{
 		const response = await s3Client.send(command);
 		const allFiles = response.Contents || [];
 
-		console.log(`Found ${allFiles.length} total files in bucket`);
+		// console.log(`Found ${allFiles.length} total files in bucket`);
 
 		// Extract album folders from file paths - looking at second level folders
 		const albumFolders = new Set<string>();
@@ -212,11 +212,11 @@ export async function scanMusicLibrary(): Promise<{
 			}
 		}
 
-		console.log(
-			`Found ${albumFolders.size} album folders: ${Array.from(
-				albumFolders
-			).join(', ')}`
-		);
+		// console.log(
+		// 	`Found ${albumFolders.size} album folders: ${Array.from(
+		// 		albumFolders
+		// 	).join(', ')}`
+		// );
 
 		// Storage for our found albums and songs
 		const foundAlbums: Album[] = [];
@@ -229,7 +229,7 @@ export async function scanMusicLibrary(): Promise<{
 				file.Key?.startsWith(`albums/${albumName}/`)
 			);
 
-			console.log(`Album "${albumName}" has ${albumFiles.length} files`);
+			// console.log(`Album "${albumName}" has ${albumFiles.length} files`);
 
 			// Find cover image
 			const coverFile = albumFiles.find(
@@ -247,11 +247,11 @@ export async function scanMusicLibrary(): Promise<{
 					file.Key?.endsWith('.m4a')
 			);
 
-			console.log(
-				`Album "${albumName}" has ${
-					songFiles.length
-				} songs and cover: ${!!coverFile}`
-			);
+			// console.log(
+			// 	`Album "${albumName}" has ${
+			// 		songFiles.length
+			// 	} songs and cover: ${!!coverFile}`
+			// );
 
 			// Create album object
 			if (coverFile?.Key) {
@@ -289,9 +289,9 @@ export async function scanMusicLibrary(): Promise<{
 			}
 		}
 
-		console.log(
-			`Processed ${foundAlbums.length} albums with ${foundSongs.length} total songs`
-		);
+		// console.log(
+		// 	`Processed ${foundAlbums.length} albums with ${foundSongs.length} total songs`
+		// );
 
 		return { albums: foundAlbums, songs: foundSongs };
 	} catch (error) {
@@ -328,21 +328,58 @@ export async function getLatestRelease(): Promise<Release | null> {
 				file.Key?.endsWith('.m4a')
 		);
 
-		if (!coverFile?.Key || !audioFile?.Key) return null;
+		if (!coverFile?.Key) return null;
 
-		// Parse metadata from filenames or use default values
-		const title =
-			audioFile.Key.split('/')
-				.pop()
-				?.replace(/\.(mp3|wav|m4a)$/, '') || 'Latest Release';
+		// Extract title and release date from cover filename
+		let title = 'Latest Release'; // Default title
+		let releaseDate = new Date().toISOString().split('T')[0]; // Default date
+
+		if (coverFile.Key) {
+			// Get just the filename without path and extension
+			const filename =
+				coverFile.Key.split('/')
+					.pop()
+					?.replace(/\.(jpg|png|jpeg)$/, '') || '';
+
+			// Check if filename has the pattern with date at the end (e.g., Fortune-Cookies-3-2025-09-20)
+			const dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})$/);
+			if (dateMatch) {
+				// Extract the date
+				releaseDate = dateMatch[1];
+
+				// Remove the date from the filename to get the title
+				const titlePart = filename.replace(/-\d{4}-\d{2}-\d{2}$/, '');
+
+				// Convert hyphens to spaces and capitalize words for nice formatting
+				title = titlePart
+					.split('-')
+					.map(
+						(word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+					)
+					.join(' ');
+			} else {
+				// If no date in the filename, just use the filename as title
+				title = filename
+					.split('-')
+					.map(
+						(word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+					)
+					.join(' ');
+
+				// Skip setting title if the filename is just "cover"
+				if (title.toLowerCase() === 'cover') {
+					title = 'Latest Release';
+				}
+			}
+		}
 
 		const release = {
 			id: 'latest-release',
-			title: title.replace(/-/g, ' '),
+			title: title,
 			artist: 'DRIP SIFU',
 			coverKey: coverFile.Key,
-			releaseDate: new Date().toISOString().split('T')[0], // Today's date as default
-			key: audioFile.Key,
+			releaseDate: releaseDate,
+			key: audioFile?.Key || '', // May be empty if no audio preview
 		};
 
 		// Get pre-signed URLs and cache the release
@@ -355,14 +392,17 @@ export async function getLatestRelease(): Promise<Release | null> {
 			{ expiresIn: 3600 }
 		);
 
-		const audioUrl = await getSignedUrl(
-			s3Client,
-			new GetObjectCommand({
-				Bucket: import.meta.env.VITE_S3_BUCKET_NAME,
-				Key: audioFile.Key,
-			}),
-			{ expiresIn: 3600 }
-		);
+		let audioUrl;
+		if (audioFile?.Key) {
+			audioUrl = await getSignedUrl(
+				s3Client,
+				new GetObjectCommand({
+					Bucket: import.meta.env.VITE_S3_BUCKET_NAME,
+					Key: audioFile.Key,
+				}),
+				{ expiresIn: 3600 }
+			);
+		}
 
 		// Cache the release
 		audioCache
@@ -407,12 +447,52 @@ export async function getUpcomingRelease(): Promise<Release | null> {
 
 		if (!coverFile?.Key) return null;
 
-		// Try to find a text file with metadata
-		const metaFile = files.find((file) => file.Key?.endsWith('.txt'));
-		let releaseDate = '';
-		let title = 'Coming Soon';
+		// Extract title and release date from cover filename
+		let title = 'Coming Soon'; // Default title
+		let releaseDate = ''; // Default is empty, will set future date below if not found
 
-		if (metaFile?.Key) {
+		if (coverFile.Key) {
+			// Get just the filename without path and extension
+			const filename =
+				coverFile.Key.split('/')
+					.pop()
+					?.replace(/\.(jpg|png|jpeg)$/, '') || '';
+
+			// Check if filename has the pattern with date at the end (e.g., Fortune-Cookies-3-2025-09-20)
+			const dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})$/);
+			if (dateMatch) {
+				// Extract the date
+				releaseDate = dateMatch[1];
+
+				// Remove the date from the filename to get the title
+				const titlePart = filename.replace(/-\d{4}-\d{2}-\d{2}$/, '');
+
+				// Convert hyphens to spaces and capitalize words for nice formatting
+				title = titlePart
+					.split('-')
+					.map(
+						(word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+					)
+					.join(' ');
+			} else {
+				// If no date in the filename, just use the filename as title
+				title = filename
+					.split('-')
+					.map(
+						(word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+					)
+					.join(' ');
+
+				// Skip setting title if the filename is just "cover"
+				if (title.toLowerCase() === 'cover') {
+					title = 'Coming Soon';
+				}
+			}
+		}
+
+		// Check if we have the metadata file for more info
+		const metaFile = files.find((file) => file.Key?.endsWith('.txt'));
+		if (metaFile?.Key && (!releaseDate || title === 'Coming Soon')) {
 			try {
 				// Get the metadata file content
 				const metaCommand = new GetObjectCommand({
@@ -424,14 +504,16 @@ export async function getUpcomingRelease(): Promise<Release | null> {
 				const metaContent = await Body?.transformToString();
 
 				if (metaContent) {
-					// Parse simple metadata - example format: "Release Date: 2024-12-31\nTitle: My New Album"
+					// Parse metadata - example format: "Release Date: 2024-12-31\nTitle: My New Album"
 					const dateMatch = metaContent.match(
 						/Release Date:\s*(\d{4}-\d{2}-\d{2})/i
 					);
-					if (dateMatch && dateMatch[1]) releaseDate = dateMatch[1];
+					if (dateMatch && dateMatch[1] && !releaseDate)
+						releaseDate = dateMatch[1];
 
 					const titleMatch = metaContent.match(/Title:\s*([^\n]+)/i);
-					if (titleMatch && titleMatch[1]) title = titleMatch[1].trim();
+					if (titleMatch && titleMatch[1] && title === 'Coming Soon')
+						title = titleMatch[1].trim();
 				}
 			} catch (err) {
 				console.error('Error parsing metadata file:', err);
