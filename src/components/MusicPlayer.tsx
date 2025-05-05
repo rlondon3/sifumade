@@ -57,7 +57,7 @@ const MusicPlayer = () => {
 	const [upcomingCoverUrl, setUpcomingCoverUrl] = useState<string | null>(null);
 
 	const audioRef = useRef<HTMLAudioElement>(null);
-
+	console.log(latestCoverUrl, '??');
 	// Calculate visible albums here, before any useEffect that depends on it
 	const getVisibleAlbums = () => {
 		return albums.slice(currentAlbumIndex, currentAlbumIndex + 3);
@@ -649,14 +649,14 @@ const MusicPlayer = () => {
 		<motion.div
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
-			className='w-full max-w-5xl mx-auto flex gap-4'
+			className='w-full max-w-6xl mx-auto flex gap-6'
 		>
 			{/* Latest Release Box - Left Side */}
 			<motion.div
 				initial={{ opacity: 0, x: -20 }}
 				animate={{ opacity: 1, x: 0 }}
 				transition={{ delay: 0.2 }}
-				className='w-1/5 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
+				className='w-1/4 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
 			>
 				<h3 className='text-[#00f3ff] text-lg font-bold mb-3'>
 					Latest Release
@@ -715,8 +715,7 @@ const MusicPlayer = () => {
 			</motion.div>
 
 			{/* Main Player - Center */}
-			<motion.div className='w-3/5 bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-6'>
-				{/* Your existing MusicPlayer content */}
+			<motion.div className='w-1/2 bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-6'>
 				{/* Hidden audio element */}
 				<audio
 					ref={audioRef}
@@ -896,7 +895,7 @@ const MusicPlayer = () => {
 				initial={{ opacity: 0, x: 20 }}
 				animate={{ opacity: 1, x: 0 }}
 				transition={{ delay: 0.4 }}
-				className='w-1/5 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
+				className='w-1/4 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
 			>
 				<h3 className='text-[#00f3ff] text-lg font-bold mb-3'>Coming Soon</h3>
 
@@ -946,7 +945,7 @@ const MusicPlayer = () => {
 								className='mt-auto bg-[#00f3ff19] text-[#00f3ff88] px-2 py-1 rounded-full text-xs cursor-not-allowed'
 								disabled
 							>
-								No Preview Available
+								Music Coming Soon
 							</motion.button>
 						)}
 					</>
