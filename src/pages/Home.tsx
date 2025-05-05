@@ -17,7 +17,7 @@ const Home = () => {
 					Where Hip Hop Enters 3rd Space
 				</p>
 				<p className='text-[#00f3ff] text-md neon-text italic opacity-80'>
-					Music Produced by Drip SIfu
+					Music Produced by Drip Sifu
 				</p>
 			</motion.div>
 			<MusicPlayer />
