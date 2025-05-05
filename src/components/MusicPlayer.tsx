@@ -7,6 +7,7 @@ import {
 	SkipForward,
 	Volume2,
 	// ShoppingCart,
+	Share2,
 	ChevronLeft,
 	ChevronRight,
 	Calendar,
@@ -55,6 +56,7 @@ const MusicPlayer = () => {
 	const [upcomingRelease, setUpcomingRelease] = useState<Release | null>(null);
 	const [latestCoverUrl, setLatestCoverUrl] = useState<string | null>(null);
 	const [upcomingCoverUrl, setUpcomingCoverUrl] = useState<string | null>(null);
+	const [showShareToast, setShowShareToast] = useState(false);
 
 	const audioRef = useRef<HTMLAudioElement>(null);
 	// Calculate visible albums here, before any useEffect that depends on it
@@ -637,6 +639,105 @@ const MusicPlayer = () => {
 		return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 	};
 
+	const handleShareTrack = () => {
+		if (!currentSong) return;
+
+		// Create a URL with track information as query parameters
+		const baseUrl = window.location.origin;
+
+		// Determine what type of track is playing and set the proper IDs
+		let params;
+
+		if (currentSong.id === 'latest-song') {
+			// For latest release
+			params = `track=${latestRelease?.id || 'latest-release'}&type=latest`;
+		} else if (currentSong.id === 'upcoming-preview') {
+			// For upcoming release preview
+			params = `track=${upcomingRelease?.id ||
+				'upcoming-release'}&type=upcoming`;
+		} else {
+			// For regular album tracks
+			const album = albums.find((a) => a.title === currentSong.album);
+			params = `track=${currentSong.id}&album=${album?.id || ''}`;
+		}
+
+		const shareLink = `${baseUrl}?${params}`;
+
+		// Copy to clipboard
+		navigator.clipboard
+			.writeText(shareLink)
+			.then(() => {
+				// Show toast notification
+				setShowShareToast(true);
+
+				// Hide toast after 3 seconds
+				setTimeout(() => {
+					setShowShareToast(false);
+				}, 3000);
+			})
+			.catch((err) => {
+				console.error('Failed to copy link: ', err);
+			});
+	};
+
+	useEffect(() => {
+		const handleSharedLink = async () => {
+			const urlParams = new URLSearchParams(window.location.search);
+			const trackId = urlParams.get('track');
+			const albumId = urlParams.get('album');
+
+			if (trackId && albumId) {
+				setIsLoading(true);
+
+				try {
+					// Handle special tracks (latest or upcoming)
+					if (albumId === 'latest-release') {
+						const latest = await getLatestRelease();
+						if (latest) {
+							setLatestRelease(latest);
+							playLatestRelease();
+						}
+					} else if (albumId === 'upcoming-release') {
+						const upcoming = await getUpcomingRelease();
+						if (upcoming && upcoming.key) {
+							setUpcomingRelease(upcoming);
+							playUpcomingPreview();
+						}
+					} else {
+						// Handle regular album tracks
+						const {
+							albums: foundAlbums,
+							songs: foundSongs,
+						} = await scanMusicLibrary();
+
+						setAlbums(foundAlbums);
+						setSongs(foundSongs);
+
+						const songIndex = foundSongs.findIndex((s) => s.id === trackId);
+						if (songIndex >= 0) {
+							setCurrentSongIndex(songIndex);
+							setCurrentSong(foundSongs[songIndex]);
+							setIsPlaying(true);
+
+							// Find the album and set the index for displaying it in carousel
+							const albumIndex = foundAlbums.findIndex((a) => a.id === albumId);
+							if (albumIndex >= 0) {
+								const carouselIndex = Math.floor(albumIndex / 3) * 3;
+								setCurrentAlbumIndex(carouselIndex);
+							}
+						}
+					}
+				} catch (error) {
+					console.error('Error handling shared link:', error);
+				} finally {
+					setIsLoading(false);
+				}
+			}
+		};
+
+		handleSharedLink();
+	}, []);
+
 	if (isLoading) {
 		return (
 			<div className='w-full max-w-3xl mx-auto bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-6 flex items-center justify-center'>
@@ -649,327 +750,339 @@ const MusicPlayer = () => {
 	const visibleAlbums = getVisibleAlbums();
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			className='w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-6'
-		>
-			{/* Latest Release Box - Left Side on desktop, stacked on mobile */}
-			<motion.div
-				initial={{ opacity: 0, x: -20 }}
-				animate={{ opacity: 1, x: 0 }}
-				transition={{ delay: 0.2 }}
-				className='w-full md:w-1/4 order-2 md:order-1 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col mb-6 md:mb-0'
-			>
-				<h3 className='text-[#00f3ff] text-lg font-bold mb-3'>
-					Latest Release
-				</h3>
-
-				{latestRelease && (
-					<>
-						<div className='aspect-square rounded-lg neon-border overflow-hidden mb-3'>
-							{latestCoverUrl ? (
-								<img
-									src={latestCoverUrl}
-									alt='Latest Release'
-									className='w-full h-full object-cover'
-								/>
-							) : (
-								<div className='w-full h-full bg-[#001530] flex items-center justify-center'>
-									<Music className='text-[#00f3ff]' />
-								</div>
-							)}
-						</div>
-
-						<h4 className='text-white text-sm font-semibold truncate'>
-							{latestRelease.title}
-						</h4>
-						<p className='text-[#00f3ff] text-xs mb-2'>
-							{latestRelease.artist}
-						</p>
-
-						<div className='flex items-center text-xs text-[#00f3ff] mb-2'>
-							<Calendar size={12} className='mr-1' />
-							<span>
-								Released:{' '}
-								{new Date(latestRelease.releaseDate).toLocaleDateString()}
-							</span>
-						</div>
-
-						{latestRelease.key && latestRelease.key !== '' ? (
-							<motion.button
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}
-								className='mt-auto bg-[#00f3ff33] text-[#00f3ff] px-2 py-1 rounded-full text-xs hover-glow'
-								onClick={playLatestRelease}
-							>
-								<Play size={12} className='inline mr-1' />
-								Listen Now
-							</motion.button>
-						) : (
-							<motion.button
-								className='mt-auto bg-[#00f3ff19] text-[#00f3ff88] px-2 py-1 rounded-full text-xs cursor-not-allowed'
-								disabled
-							>
-								See Albums
-							</motion.button>
-						)}
-					</>
-				)}
-
-				{!latestRelease && (
-					<div className='flex-1 flex items-center justify-center text-[#00f3ff] text-sm'>
-						No latest release found
-					</div>
-				)}
-			</motion.div>
-
-			{/* Main Player - Center for desktop, Top for mobile */}
-			<motion.div className='w-full md:w-1/2 order-1 md:order-2 bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 md:p-6 mb-6 md:mb-0'>
-				{/* Hidden audio element */}
-				<audio
-					ref={audioRef}
-					onTimeUpdate={handleTimeUpdate}
-					onEnded={nextTrack}
-					onPlay={() => setIsPlaying(true)}
-					onPause={() => setIsPlaying(false)}
-					onLoadedMetadata={handleMetadataLoaded}
-				/>
-
-				<div className='flex flex-col items-center'>
-					{/* Album Art - smaller on mobile */}
-					<motion.div
-						className='w-48 h-48 md:w-64 md:h-64 rounded-lg neon-border overflow-hidden mb-4 md:mb-8'
-						whileHover={{ scale: 1.02 }}
-					>
-						{coverUrl ? (
-							<img
-								src={coverUrl}
-								alt='Album Cover'
-								className='w-full h-full object-cover'
-							/>
-						) : (
-							<div className='w-full h-full bg-[#001530] flex items-center justify-center'>
-								<p className='text-[#00f3ff]'>No Cover</p>
-							</div>
-						)}
-					</motion.div>
-
-					{/* Track Info */}
-					<div className='text-center mb-4 md:mb-8'>
-						<h2 className='text-xl md:text-2xl font-bold neon-text mb-2'>
-							{currentSong?.title || 'No track selected'}
-						</h2>
-						<p className='text-[#00f3ff] opacity-80'>
-							{currentSong?.artist || ''}
-						</p>
-					</div>
-
-					{/* Controls */}
-					<div className='flex items-center justify-center space-x-6 mb-4 md:mb-8'>
-						<motion.button
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.95 }}
-							className='text-[#00f3ff] hover-glow'
-							onClick={prevTrack}
-						>
-							<SkipBack size={24} />
-						</motion.button>
-
-						<motion.button
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.95 }}
-							className='bg-[#00f3ff] text-black p-4 rounded-full hover-glow'
-							onClick={togglePlay}
-							disabled={!currentSong}
-						>
-							{isPlaying ? <Pause size={24} /> : <Play size={24} />}
-						</motion.button>
-
-						<motion.button
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.95 }}
-							className='text-[#00f3ff] hover-glow'
-							onClick={nextTrack}
-						>
-							<SkipForward size={24} />
-						</motion.button>
-					</div>
-
-					{/* Progress Bar */}
-					<div className='w-full mb-2'>
-						<div className='flex justify-between text-xs text-[#00f3ff] mb-1'>
-							<span>{formatTime(currentTime)}</span>
-							<span>{formatTime(duration)}</span>
-						</div>
-						<div
-							className='w-full h-1 bg-[#00f3ff33] rounded-full mb-4 md:mb-8 cursor-pointer'
-							onClick={handleSeek}
-						>
-							<motion.div
-								className='h-full bg-[#00f3ff] rounded-full'
-								style={{ width: `${progress}%` }}
-								whileHover={{ scale: 1.5, translateY: -2 }}
-							/>
-						</div>
-					</div>
-
-					{/* Volume control only - Purchase button commented out */}
-					<div className='flex items-center justify-between w-full mb-4 md:mb-8'>
-						<div className='flex items-center'>
-							<Volume2 className='text-[#00f3ff] mr-2' />
-							<input
-								type='range'
-								min='0'
-								max='1'
-								step='0.01'
-								value={volume}
-								onChange={handleVolumeChange}
-								className='w-24 accent-[#00f3ff]'
-							/>
-						</div>
-
-						{/* Purchase button commented out
-				<motion.button
-				  whileHover={{ scale: 1.05, color: '#ff9000' }}
-				  whileTap={{ scale: 0.95 }}
-				  className='flex items-center bg-[#00f3ff33] text-[#00f3ff] px-4 py-2 rounded-full hover-glow'
+		<>
+			{/* Toast Notification - placed outside main components but within React fragment */}
+			{showShareToast && (
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					exit={{ opacity: 0, y: -20 }}
+					className='fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 text-[#00f3ff] px-4 py-2 rounded-full text-sm z-50'
 				>
-				  <ShoppingCart className='mr-2' />
-				  Purchase Track
-				</motion.button>
-				*/}
-					</div>
-
-					{/* Album Carousel - Row on desktop, stack on mobile */}
-					{albums.length > 0 && (
-						<div className='w-full'>
-							<div className='flex items-center justify-between mb-4'>
-								<h3 className='text-[#00f3ff] text-lg'>More Albums</h3>
-								<div className='flex gap-2'>
-									<motion.button
-										whileHover={{ scale: 1.1 }}
-										whileTap={{ scale: 0.95 }}
-										onClick={prevSlide}
-										className='text-[#00f3ff] hover-glow p-1'
-									>
-										<ChevronLeft size={20} />
-									</motion.button>
-									<motion.button
-										whileHover={{ scale: 1.1 }}
-										whileTap={{ scale: 0.95 }}
-										onClick={nextSlide}
-										className='text-[#00f3ff] hover-glow p-1'
-									>
-										<ChevronRight size={20} />
-									</motion.button>
-								</div>
-							</div>
-
-							<div className='flex flex-col sm:flex-row justify-between gap-4'>
-								{visibleAlbums.map((album) => (
-									<motion.div
-										key={album.id}
-										className='relative w-full sm:w-1/3 aspect-square rounded-lg overflow-hidden neon-border cursor-pointer mb-4 sm:mb-0'
-										whileHover={{ scale: 1.05 }}
-										transition={{ type: 'spring', stiffness: 300 }}
-										onClick={() => selectAlbum(album)}
-									>
-										<img
-											src={albumCovers[album.id] || ''}
-											alt={album.title}
-											className='w-full h-full object-cover'
-										/>
-										<div className='absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 backdrop-blur-sm p-2'>
-											<p className='text-white text-sm font-semibold truncate'>
-												{album.title}
-											</p>
-											<p className='text-[#00f3ff] text-xs truncate'>
-												{album.artist}
-											</p>
-										</div>
-									</motion.div>
-								))}
-							</div>
-						</div>
-					)}
-
-					{albums.length === 0 && (
-						<div className='text-center text-[#00f3ff] mt-4'>
-							<p>No albums found. Upload some music to your S3 bucket.</p>
-						</div>
-					)}
-				</div>
-			</motion.div>
-
-			{/* Upcoming Release Box - Right Side on desktop, stacked on mobile */}
+					Link copied to clipboard!
+				</motion.div>
+			)}
 			<motion.div
-				initial={{ opacity: 0, x: 20 }}
-				animate={{ opacity: 1, x: 0 }}
-				transition={{ delay: 0.4 }}
-				className='w-full md:w-1/4 order-3 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
+				initial={{ opacity: 0, y: 20 }}
+				animate={{ opacity: 1, y: 0 }}
+				className='w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-6'
 			>
-				<h3 className='text-[#00f3ff] text-lg font-bold mb-3'>Coming Soon</h3>
+				{/* Latest Release Box - Left Side on desktop, stacked on mobile */}
+				<motion.div
+					initial={{ opacity: 0, x: -20 }}
+					animate={{ opacity: 1, x: 0 }}
+					transition={{ delay: 0.2 }}
+					className='w-full md:w-1/4 order-2 md:order-1 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col mb-6 md:mb-0'
+				>
+					<h3 className='text-[#00f3ff] text-lg font-bold mb-3'>
+						Latest Release
+					</h3>
 
-				{upcomingRelease && (
-					<>
-						<div className='aspect-square rounded-lg neon-border overflow-hidden mb-3'>
-							{upcomingCoverUrl ? (
+					{latestRelease && (
+						<>
+							<div className='aspect-square rounded-lg neon-border overflow-hidden mb-3'>
+								{latestCoverUrl ? (
+									<img
+										src={latestCoverUrl}
+										alt='Latest Release'
+										className='w-full h-full object-cover'
+									/>
+								) : (
+									<div className='w-full h-full bg-[#001530] flex items-center justify-center'>
+										<Music className='text-[#00f3ff]' />
+									</div>
+								)}
+							</div>
+
+							<h4 className='text-white text-sm font-semibold truncate'>
+								{latestRelease.title}
+							</h4>
+							<p className='text-[#00f3ff] text-xs mb-2'>
+								{latestRelease.artist}
+							</p>
+
+							<div className='flex items-center text-xs text-[#00f3ff] mb-2'>
+								<Calendar size={12} className='mr-1' />
+								<span>
+									Released:{' '}
+									{new Date(latestRelease.releaseDate).toLocaleDateString()}
+								</span>
+							</div>
+
+							{latestRelease.key && latestRelease.key !== '' ? (
+								<motion.button
+									whileHover={{ scale: 1.05 }}
+									whileTap={{ scale: 0.95 }}
+									className='mt-auto bg-[#00f3ff33] text-[#00f3ff] px-2 py-1 rounded-full text-xs hover-glow'
+									onClick={playLatestRelease}
+								>
+									<Play size={12} className='inline mr-1' />
+									Listen Now
+								</motion.button>
+							) : (
+								<motion.button
+									className='mt-auto bg-[#00f3ff19] text-[#00f3ff88] px-2 py-1 rounded-full text-xs cursor-not-allowed'
+									disabled
+								>
+									See Albums
+								</motion.button>
+							)}
+						</>
+					)}
+
+					{!latestRelease && (
+						<div className='flex-1 flex items-center justify-center text-[#00f3ff] text-sm'>
+							No latest release found
+						</div>
+					)}
+				</motion.div>
+
+				{/* Main Player - Center for desktop, Top for mobile */}
+				<motion.div className='w-full md:w-1/2 order-1 md:order-2 bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 md:p-6 mb-6 md:mb-0'>
+					{/* Hidden audio element */}
+					<audio
+						ref={audioRef}
+						onTimeUpdate={handleTimeUpdate}
+						onEnded={nextTrack}
+						onPlay={() => setIsPlaying(true)}
+						onPause={() => setIsPlaying(false)}
+						onLoadedMetadata={handleMetadataLoaded}
+					/>
+
+					<div className='flex flex-col items-center'>
+						{/* Album Art - smaller on mobile */}
+						<motion.div
+							className='w-48 h-48 md:w-64 md:h-64 rounded-lg neon-border overflow-hidden mb-4 md:mb-8'
+							whileHover={{ scale: 1.02 }}
+						>
+							{coverUrl ? (
 								<img
-									src={upcomingCoverUrl}
-									alt='Upcoming Release'
+									src={coverUrl}
+									alt='Album Cover'
 									className='w-full h-full object-cover'
 								/>
 							) : (
 								<div className='w-full h-full bg-[#001530] flex items-center justify-center'>
-									<Music className='text-[#00f3ff]' />
+									<p className='text-[#00f3ff]'>No Cover</p>
 								</div>
 							)}
+						</motion.div>
+
+						{/* Track Info */}
+						<div className='text-center mb-4 md:mb-8'>
+							<h2 className='text-xl md:text-2xl font-bold neon-text mb-2'>
+								{currentSong?.title || 'No track selected'}
+							</h2>
+							<p className='text-[#00f3ff] opacity-80'>
+								{currentSong?.artist || ''}
+							</p>
 						</div>
 
-						<h4 className='text-white text-sm font-semibold truncate'>
-							{upcomingRelease.title}
-						</h4>
-						<p className='text-[#00f3ff] text-xs mb-2'>
-							{upcomingRelease.artist}
-						</p>
-
-						<div className='flex items-center text-xs text-[#00f3ff] mb-2'>
-							<Clock size={12} className='mr-1' />
-							<span>
-								Drops:{' '}
-								{new Date(upcomingRelease.releaseDate).toLocaleDateString()}
-							</span>
-						</div>
-
-						{upcomingRelease.key ? (
+						{/* Controls */}
+						<div className='flex items-center justify-center space-x-6 mb-4 md:mb-8'>
 							<motion.button
-								whileHover={{ scale: 1.05 }}
+								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.95 }}
-								className='mt-auto bg-[#00f3ff33] text-[#00f3ff] px-2 py-1 rounded-full text-xs hover-glow'
-								onClick={playUpcomingPreview}
+								className='text-[#00f3ff] hover-glow'
+								onClick={prevTrack}
 							>
-								<Play size={12} className='inline mr-1' />
-								Preview
+								<SkipBack size={24} />
 							</motion.button>
-						) : (
-							<motion.button
-								className='mt-auto bg-[#00f3ff19] text-[#00f3ff88] px-2 py-1 rounded-full text-xs cursor-not-allowed'
-								disabled
-							>
-								Music Coming Soon
-							</motion.button>
-						)}
-					</>
-				)}
 
-				{!upcomingRelease && (
-					<div className='flex-1 flex items-center justify-center text-[#00f3ff] text-sm'>
-						No upcoming releases
+							<motion.button
+								whileHover={{ scale: 1.1 }}
+								whileTap={{ scale: 0.95 }}
+								className='bg-[#00f3ff] text-black p-4 rounded-full hover-glow'
+								onClick={togglePlay}
+								disabled={!currentSong}
+							>
+								{isPlaying ? <Pause size={24} /> : <Play size={24} />}
+							</motion.button>
+
+							<motion.button
+								whileHover={{ scale: 1.1 }}
+								whileTap={{ scale: 0.95 }}
+								className='text-[#00f3ff] hover-glow'
+								onClick={nextTrack}
+							>
+								<SkipForward size={24} />
+							</motion.button>
+						</div>
+
+						{/* Progress Bar */}
+						<div className='w-full mb-2'>
+							<div className='flex justify-between text-xs text-[#00f3ff] mb-1'>
+								<span>{formatTime(currentTime)}</span>
+								<span>{formatTime(duration)}</span>
+							</div>
+							<div
+								className='w-full h-1 bg-[#00f3ff33] rounded-full mb-4 md:mb-8 cursor-pointer'
+								onClick={handleSeek}
+							>
+								<motion.div
+									className='h-full bg-[#00f3ff] rounded-full'
+									style={{ width: `${progress}%` }}
+									whileHover={{ scale: 1.5, translateY: -2 }}
+								/>
+							</div>
+						</div>
+						{/* Volume and Share controls - Share button in place of purchase button */}
+						<div className='flex items-center justify-between w-full mb-4 md:mb-8'>
+							<div className='flex items-center'>
+								<Volume2 className='text-[#00f3ff] mr-2' />
+								<input
+									type='range'
+									min='0'
+									max='1'
+									step='0.01'
+									value={volume}
+									onChange={handleVolumeChange}
+									className='w-24 accent-[#00f3ff]'
+								/>
+							</div>
+
+							<motion.button
+								whileHover={{ scale: 1.05, color: '#ff9000' }}
+								whileTap={{ scale: 0.95 }}
+								className='flex items-center bg-[#00f3ff33] text-[#00f3ff] px-4 py-2 rounded-full hover-glow'
+								onClick={handleShareTrack}
+								disabled={!currentSong}
+							>
+								<Share2 className='mr-2' size={18} />
+								Share Track
+							</motion.button>
+						</div>
+
+						{/* Album Carousel - Row on desktop, stack on mobile */}
+						{albums.length > 0 && (
+							<div className='w-full'>
+								<div className='flex items-center justify-between mb-4'>
+									<h3 className='text-[#00f3ff] text-lg'>More Albums</h3>
+									<div className='flex gap-2'>
+										<motion.button
+											whileHover={{ scale: 1.1 }}
+											whileTap={{ scale: 0.95 }}
+											onClick={prevSlide}
+											className='text-[#00f3ff] hover-glow p-1'
+										>
+											<ChevronLeft size={20} />
+										</motion.button>
+										<motion.button
+											whileHover={{ scale: 1.1 }}
+											whileTap={{ scale: 0.95 }}
+											onClick={nextSlide}
+											className='text-[#00f3ff] hover-glow p-1'
+										>
+											<ChevronRight size={20} />
+										</motion.button>
+									</div>
+								</div>
+
+								<div className='flex flex-col sm:flex-row justify-between gap-4'>
+									{visibleAlbums.map((album) => (
+										<motion.div
+											key={album.id}
+											className='relative w-full sm:w-1/3 aspect-square rounded-lg overflow-hidden neon-border cursor-pointer mb-4 sm:mb-0'
+											whileHover={{ scale: 1.05 }}
+											transition={{ type: 'spring', stiffness: 300 }}
+											onClick={() => selectAlbum(album)}
+										>
+											<img
+												src={albumCovers[album.id] || ''}
+												alt={album.title}
+												className='w-full h-full object-cover'
+											/>
+											<div className='absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 backdrop-blur-sm p-2'>
+												<p className='text-white text-sm font-semibold truncate'>
+													{album.title}
+												</p>
+												<p className='text-[#00f3ff] text-xs truncate'>
+													{album.artist}
+												</p>
+											</div>
+										</motion.div>
+									))}
+								</div>
+							</div>
+						)}
+
+						{albums.length === 0 && (
+							<div className='text-center text-[#00f3ff] mt-4'>
+								<p>No albums found. Upload some music to your S3 bucket.</p>
+							</div>
+						)}
 					</div>
-				)}
+				</motion.div>
+
+				{/* Upcoming Release Box - Right Side on desktop, stacked on mobile */}
+				<motion.div
+					initial={{ opacity: 0, x: 20 }}
+					animate={{ opacity: 1, x: 0 }}
+					transition={{ delay: 0.4 }}
+					className='w-full md:w-1/4 order-3 self-start bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-4 flex flex-col'
+				>
+					<h3 className='text-[#00f3ff] text-lg font-bold mb-3'>Coming Soon</h3>
+
+					{upcomingRelease && (
+						<>
+							<div className='aspect-square rounded-lg neon-border overflow-hidden mb-3'>
+								{upcomingCoverUrl ? (
+									<img
+										src={upcomingCoverUrl}
+										alt='Upcoming Release'
+										className='w-full h-full object-cover'
+									/>
+								) : (
+									<div className='w-full h-full bg-[#001530] flex items-center justify-center'>
+										<Music className='text-[#00f3ff]' />
+									</div>
+								)}
+							</div>
+
+							<h4 className='text-white text-sm font-semibold truncate'>
+								{upcomingRelease.title}
+							</h4>
+							<p className='text-[#00f3ff] text-xs mb-2'>
+								{upcomingRelease.artist}
+							</p>
+
+							<div className='flex items-center text-xs text-[#00f3ff] mb-2'>
+								<Clock size={12} className='mr-1' />
+								<span>
+									Drops:{' '}
+									{new Date(upcomingRelease.releaseDate).toLocaleDateString()}
+								</span>
+							</div>
+
+							{upcomingRelease.key ? (
+								<motion.button
+									whileHover={{ scale: 1.05 }}
+									whileTap={{ scale: 0.95 }}
+									className='mt-auto bg-[#00f3ff33] text-[#00f3ff] px-2 py-1 rounded-full text-xs hover-glow'
+									onClick={playUpcomingPreview}
+								>
+									<Play size={12} className='inline mr-1' />
+									Preview
+								</motion.button>
+							) : (
+								<motion.button
+									className='mt-auto bg-[#00f3ff19] text-[#00f3ff88] px-2 py-1 rounded-full text-xs cursor-not-allowed'
+									disabled
+								>
+									Music Coming Soon
+								</motion.button>
+							)}
+						</>
+					)}
+
+					{!upcomingRelease && (
+						<div className='flex-1 flex items-center justify-center text-[#00f3ff] text-sm'>
+							No upcoming releases
+						</div>
+					)}
+				</motion.div>
 			</motion.div>
-		</motion.div>
+		</>
 	);
 };
 
