@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --neon-blue: #00f3ff;
+    --neon-orange: #ff9000;
+    --dark-bg: #000919;
+  }
+
+  body {
+    background-color: var(--dark-bg);
+    color: white;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  .neon-border {
+    @apply relative;
+    box-shadow: 0 0 10px var(--neon-blue),
+                inset 0 0 10px var(--neon-blue);
+  }
+
+  .neon-text {
+    text-shadow: 0 0 10px var(--neon-blue),
+                 0 0 20px var(--neon-blue),
+                 0 0 30px var(--neon-blue);
+  }
+
+  .grid-bg {
+    background-image: linear-gradient(var(--neon-blue) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--neon-blue) 1px, transparent 1px);
+    background-size: 30px 30px;
+    background-color: var(--dark-bg);
+    opacity: 0.1;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+
+  .hover-glow:hover {
+    filter: brightness(1.5);
+    text-shadow: 0 0 10px currentColor;
+  }
+}
