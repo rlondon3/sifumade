@@ -741,7 +741,7 @@ const MusicPlayer = () => {
 	if (isLoading) {
 		return (
 			<div className='w-full max-w-3xl mx-auto bg-opacity-20 backdrop-blur-lg rounded-xl neon-border p-6 flex items-center justify-center'>
-				<p className='text-[#00f3ff] text-xl'>Loading your music...</p>
+				<p className='text-[#00f3ff] text-xl'>Loading Sifu Made Beats...</p>
 			</div>
 		);
 	}
@@ -1008,7 +1008,7 @@ const MusicPlayer = () => {
 
 						{albums.length === 0 && (
 							<div className='text-center text-[#00f3ff] mt-4'>
-								<p>No albums found. Upload some music to your S3 bucket.</p>
+								<p>No albums found. Contact Site Admin.</p>
 							</div>
 						)}
 					</div>
